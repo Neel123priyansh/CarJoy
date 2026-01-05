@@ -1,477 +1,240 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom"; // Import Link for routing
-import headerImg from "../assets/images/head2.jpg"; 
-import bodyImg from "../assets/images/body.jpg"; 
-import deliveredicon from "../assets/images/icons/delivered-icon.PNG";
-import intransiticon from "../assets/images/icons/in-transit-icon.PNG";
-import pickedicon from "../assets/images/icons/picked-icon.PNG";
 
-// Define API base URL
 const apiBaseURL = "http://127.0.0.1:5000/api";
+const headerImg = "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=2000";
 
 function DashboardPage() {
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [notificationPopupOpen, setNotificationPopupOpen] = useState(false);
-    const [orders, setOrders] = useState([]);
-    const [shipments, setShipments] = useState([]);
-    const [payments, setPayments] = useState([]);
-    const [subscriptions, setSubscriptions] = useState([]);
-    const [notifications, setNotifications] = useState([]);
-    const [error, setError] = useState(null);
-    const dropdownRef = useRef(null);
-    const notificationRef = useRef(null);
+  /* ---------------- STATE MANAGEMENT ---------------- */
+  const [activeTab, setActiveTab] = useState("Dashboard");
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [labelStep, setLabelStep] = useState(1); 
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
-    const [showTrackingPopup, setShowTrackingPopup] = useState(false);
-    const [selectedShipment, setSelectedShipment] = useState(null);
+  // High-Fidelity Dummy Data
+  const [orders] = useState([
+    { id: "ORD-9921", customer: "John Doe", total: 120.50, address: "123 Maple St, NY", status: "Pending" },
+    { id: "ORD-9922", customer: "Sarah Smith", total: 45.00, address: "456 Oak Ave, CA", status: "Processing" },
+    { id: "ORD-9923", customer: "Mike Ross", total: 210.00, address: "789 Pine Rd, IL", status: "Pending" },
+  ]);
 
-    const [trackingDetails, setTrackingDetails] = useState(null);
-    
-    const fetchTrackingDetails = async (trackingNumber) => {
-        try {
-          const response = await axios.get(`${apiBaseURL}/track_shipment/271898571`);
-          setTrackingDetails(response.data);
-          setShowTrackingPopup(true);
-          console.log(response.data)
-        } catch (err) {
-          setError('Error fetching tracking details');
-        }
-      };
+  const [shipments] = useState([
+    { id: 1, date: "2024-03-10", tracking: "SMP-772190", courier: "BlueDart", status: "Delivered" },
+    { id: 2, date: "2024-03-11", tracking: "SMP-881022", courier: "Delhivery", status: "In-Transit" },
+    { id: 3, date: "2024-03-12", tracking: "SMP-110293", courier: "FedEx", status: "Picked" },
+  ]);
 
-      const closeTrackingPopup = () => {
-        setShowTrackingPopup(false);
-        setTrackingDetails(null);
-      };
-    
-
-    const toggleTrackingPopup = (shipment) => {
-        setSelectedShipment(shipment);
-        setShowTrackingPopup((prev) => !prev);
-    };
-
-    useEffect(() => {
-        const fetchData = async () => {
-            const token = localStorage.getItem("access_token");
-
-            if (!token) {
-                setError("User not logged in. Please log in again.");
-                return;
-            }
-
-            const headers = {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-            };
-
-            try {
-                const dashboardRes = await axios.get(`${apiBaseURL}/dashboard`, { headers });
-                setOrders(dashboardRes.data.orders || []);
-                setShipments(dashboardRes.data.shipments || []);
-                setPayments(dashboardRes.data.payments || []);
-                setSubscriptions(dashboardRes.data.subscriptions || []);
-                setNotifications(dashboardRes.data.notifications || []);
-            } catch (err) {
-                console.error("Error fetching data:", err);
-                setError("Failed to fetch dashboard data. Please try again later.");
-            }
-        };
-
-        fetchData();
-    }, []);
-
-    const toggleDropdown = () => setDropdownOpen((prev) => !prev);
-    const toggleNotificationPopup = () => setNotificationPopupOpen((prev) => !prev);
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setDropdownOpen(false);
-            }
-            if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-                setNotificationPopupOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    return (
-        <div className="min-h-screen flex flex-col">
-            {/* Header with Background Image and Black Menu Bar */}
-            <header className="bg-cover bg-center text-white min-h-[500px]" style={{ backgroundImage: `url(${headerImg})` }}>
-                <div className="bg-black text-white p-4 flex justify-between items-center">
-                    <div className="flex items-center space-x-6">
-                        <div className="text-2xl font-bold">CargoJoy</div>
-
-                        {/* Menu Items */}
-                        <div className="flex space-x-6">
-                            <a href="#dashboard" className="px-4 py-2 hover:bg-gray-700 rounded-lg">Dashboard</a>
-                            <a href="#orders-shipments" className="px-4 py-2 hover:bg-gray-700 rounded-lg">Orders & Shipments</a>
-                            <a href="#wallet" className="px-4 py-2 hover:bg-gray-700 rounded-lg">Wallet</a>
-                            <Link to="/report" className="px-4 py-2 hover:bg-gray-700 rounded-lg">Reports</Link>
-                            <a href="#billing" className="px-4 py-2 hover:bg-gray-700 rounded-lg">Billing</a>
-                            <a href="#utility" className="px-4 py-2 hover:bg-gray-700 rounded-lg">Utility</a>
-                            <Link to="/admin" className="px-4 py-2 hover:bg-gray-700 rounded-lg">Admin</Link> {/* Added Admin Link */}
-                        </div>
-                    </div>
-                    <div className="flex items-center">
-                        <button
-                            onClick={toggleNotificationPopup}
-                            className="text-white hover:bg-gray-700 p-2 rounded-full mx-4"
-                        >
-                            <span className="material-icons">notifications</span> ({notifications.length})
-                        </button>
-                        {notificationPopupOpen && (
-                            <div className="absolute right-0 mt-2 w-64 bg-white text-black rounded-lg shadow-lg p-4">
-                                <h3 className="text-lg font-bold mb-2">Notifications</h3>
-                                <ul className="space-y-2">
-                                    {notifications.map((notification, index) => (
-                                        <li key={index} className="border-b pb-2">
-                                            {notification.message}
-                                        </li>
-                                    ))}
-                                    {notifications.length === 0 && (
-                                        <li className="text-gray-500">No notifications available</li>
-                                    )}
-                                </ul>
-                            </div>
-                        )}
-                        <button
-                            onClick={toggleDropdown}
-                            className="bg-gray-800 text-white px-4 py-2 rounded-lg shadow-md hover:bg-gray-700"
-                        >
-                            Profile
-                        </button>
-                        {dropdownOpen && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-lg shadow-lg">
-                                <a href="/profile" className="block px-4 py-2 hover:bg-gray-100">
-                                    Profile
-                                </a>
-                                <a href="/change-password" className="block px-4 py-2 hover:bg-gray-100">
-                                    Change Password
-                                </a>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Row 1 - User Details and Plan Details */}
-                <div className="flex flex-wrap pt-6 pb-24 px-12" >
-                    {/* User Details Section */}
-                    <div className="w-full sm:w-1/2 pr-4 mb-6 sm:mb-0">
-                        <div className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] rounded-lg shadow-lg mb-6 relative p-6">
-                            <div className="space-y-4">
-                                <h2 className="text-4xl font-semibold text-white">Hello Sunny</h2>
-                                <p className="text-xl text-white">Welcome back!</p>
-                                <p className="text-xl text-white">You are a premium customer! Your plan expires on 31st Dec 2025.</p>
-                                <div className="absolute bottom-4 right-4">
-                                    <button className="bg-white text-[#FF8474] px-6 py-3 rounded-lg shadow-md hover:bg-gray-100">
-                                        Manage Subscription
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Plan Details Section */}
-                    <div className="w-full sm:w-1/2 pr-4 mb-6 sm:mb-0">
-                        <div className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] rounded-lg shadow-lg mb-6 relative p-6">
-                            <div className="space-y-4">
-                                <h2 className="text-4xl font-semibold text-white">Plan Details</h2>
-                                <p className="text-xl text-white">Your current plan gives you unlimited access to all features!</p>
-                                <p className="text-xl text-white">Enjoy the benefits until your renewal date.</p>
-                                <div className="absolute bottom-4 right-4">
-                                    <button className="bg-white text-[#FF8474] px-6 py-3 rounded-lg shadow-md hover:bg-gray-100">
-                                        Renew Plan
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                    {/* Buttons Section aligned to bottom of header */}
-               
-                <div className="flex flex-wrap justify-between px-12 pt-12 relative gap-4" style={{marginBottom: '-24em'}}>
-                    <button className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] text-white px-8 py-6 text-xl font-bold rounded-lg shadow-lg w-full sm:w-auto">
-                        Add Orders
-                    </button>
-                    <button className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] text-white px-8 py-6 text-xl font-bold rounded-lg shadow-lg w-full sm:w-auto">
-                        Add Money
-                    </button>
-                    <button className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] text-white px-8 py-6 text-xl font-bold rounded-lg shadow-lg w-full sm:w-auto">
-                        Raise a Ticket
-                    </button>
-                    <button className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] text-white px-8 py-6 text-xl font-bold rounded-lg shadow-lg w-full sm:w-auto">
-                        Rate Card
-                    </button>
-                    <button className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] text-white px-8 py-6 text-xl font-bold rounded-lg shadow-lg w-full sm:w-auto">
-                        Manage Account
-                    </button>
-                </div>
-
-                
-
-            </header>
-
-            
-
-            {/* Main Content (Body with Blocks) */}
-            {/* <div className="bg-gradient-to-r from-[#696880] to-[#ADADC9"   style={{ backgroundImage: `url(${bodyImg})` }}>*/}
-            <div className="bg-gradient-to-r from-[#696880] to-[#ADADC9]">
-       
-                <div className="flex flex-1 pt-12 px-12">
-                    {/* Row 1 - Shipment and News & Updates */}
-                    <div className="w-full pr-4">
-                        <div className="bg-white rounded-lg shadow-lg mb-6">
-                        <div className="bg-black text-white p-4 rounded-t-lg flex justify-between items-center">
-                            <div className="text-lg">Shipment</div>
-
-                            {/* View Shipment button in the header */}
-                            <button
-                                onClick={() => alert("View all shipments clicked")}
-                                className="bg-black border text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-                            >
-                                View Shipments
-                            </button>
-                            </div>
-
-                             {/* Filter Section */}
-                             
-                             <div className="flex items-center gap-8 px-4 py-2">
-                                {/* Filter Button for Picked Status */}
-                                <button className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] text-white px-6 py-2 rounded-lg text-lg font-semibold hover:scale-105 transform transition-all">
-                                    Picked
-                                </button>
-
-                                {/* Filter Button for Delivered Status */}
-                                <button className="bg-gradient-to-r from-[#6D9B81] to-[#A9D6B5] text-white px-6 py-2 rounded-lg text-lg font-semibold hover:scale-105 transform transition-all">
-                                    Delivered
-                                </button>
-
-                                {/* Filter Button for RTO Status */}
-                                <button className="bg-gradient-to-r from-[#D180D2] to-[#F1A1F0] text-white px-6 py-2 rounded-lg text-lg font-semibold hover:scale-105 transform transition-all">
-                                    RTO
-                                </button>
-
-                                {/* Filter Button for In-Transit Status */}
-                                <button className="bg-gradient-to-r from-[#6D87B2] to-[#A1C4E8] text-white px-6 py-2 rounded-lg text-lg font-semibold hover:scale-105 transform transition-all">
-                                    In-Transit
-                                </button>
-
-                                {/* Filter Button for Cancelled Status */}
-                                <button className="bg-gradient-to-r from-[#C4B5AE] to-[#E1D1B7] text-white px-6 py-2 rounded-lg text-lg font-semibold hover:scale-105 transform transition-all">
-                                    Cancelled
-                                </button>
-
-                                {/* Filter Button for Lost Status */}
-                                <button className="bg-gradient-to-r from-[#D56F5F] to-[#F2A7A1] text-white px-6 py-2 rounded-lg text-lg font-semibold hover:scale-105 transform transition-all">
-                                    Lost
-                                </button>
-
-                                {/* Filter Button for All Status */}
-                                <button className="bg-gradient-to-r from-[#808080] to-[#B3B3B3] text-white px-6 py-2 rounded-lg text-lg font-semibold hover:scale-105 transform transition-all">
-                                    All
-                                </button>
-                            </div>
-
-
-
-                        <div className="space-y-2 min-h-[400px] max-h-[400px] overflow-y-auto p-4">
-                            <table className="w-full border-collapse">
-                                <thead>
-                                    <tr>
-                                        <th className="border-b py-2 text-left">Shipment Date</th>
-                                        <th className="border-b py-2 text-left">Tracking ID</th>
-                                        <th className="border-b py-2 text-left">Courier Name</th>
-                                        <th className="border-b py-2 text-left">Status</th>
-                                        <th className="border-b py-2 text-left">Destination</th>
-                                        <th className="border-b py-2 text-left">Estimated Delivery Date</th>
-                                        <th className="border-b py-2 text-left">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {shipments.map((shipment) => (
-                                        <tr key={shipment.id}>
-                                            <td className="border-b py-2">{shipment.created_at}</td>
-                                            <td className="border-b py-2">{shipment.tracking_id}</td>
-                                            <td className="border-b py-2">{shipment.courier_name}</td>
-                                            <td className="border-b py-2">{shipment.shipment_status}</td>
-                                            <td className="border-b py-2">{shipment.current_location}</td>
-                                            <td className="border-b py-2">{shipment.estimated_delivery_date}</td>
-                                            <td className="border-b py-2">
-                                            <button
-                                                onClick={() => fetchTrackingDetails(shipment.tracking_id)}
-                                                className="bg-gradient-to-r from-[#FF8474] to-[#FFABA9] px-4 py-1 rounded-lg"
-                                                >
-                                                Track
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    
-                </div>
-                {/* Main Content (Body with Blocks) */}
-                <div className="flex flex-1 pt-6 px-12">
-                    {/* Row 1 - Shipment and News & Updates */}
-                    <div className="w-3/4 pr-4">
-                        <div className="bg-white rounded-lg shadow-lg mb-6">
-                            <div className="bg-black text-white p-4 rounded-t-lg">Orders</div>
-                            <div className="space-y-2 min-h-[400px] max-h-[400px] overflow-y-auto p-4">
-                            <table className="w-full border-collapse">
-                                <thead>
-                                    <tr>
-                                        <th className="border-b py-2 text-left">Order Date</th>
-                                        <th className="border-b py-2 text-left">Oder ID</th>
-                                        <th className="border-b py-2 text-left">Status </th>
-                                        <th className="border-b py-2 text-left">Source</th>
-                                        <th className="border-b py-2 text-left">Destination</th>
-                                        <th className="border-b py-2 text-left">Item Desc</th>
-                                        <th className="border-b py-2 text-left">Weight</th>
-                                        <th className="border-b py-2 text-left">Payment</th>
-                                        
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {orders.map((item) => (
-                                        <tr key={item.id}>
-                                            <td className="border-b py-2">{item.created_at}</td>
-                                            <td className="border-b py-2">{item.id}</td>
-                                            <td className="border-b py-2">{item.order_status}</td>
-                                            <td className="border-b py-2">{item.source_address}</td>
-                                            <td className="border-b py-2">{item.destination_address}</td>
-                                            <td className="border-b py-2">{item.item_description}</td>
-                                            <td className="border-b py-2">{item.weight}</td>
-                                            <td className="border-b py-2">{item.payment_status}</td>
-                                            
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                             </div>
-                        </div>
-                    </div>
-
-                    <div className="w-1/4 pl-4">
-                        <div className="bg-white rounded-lg shadow-lg mb-6">
-                            <div className="bg-black text-white p-4 rounded-t-lg">Payment</div>
-                            <div className="space-y-2  min-h-[400px] max-h-[300px] overflow-y-auto p-4">
-                                {notifications.map((notification, index) => (
-                                    <div key={index} className="space-y-2">
-                                        <div>{notification.message}</div>
-                                    </div>
-                                ))}
-                            </div>
-                            </div>
-                    </div>
-                   
-                </div>
-                
-                
-                <div className="flex flex-1 pt-6 px-12">
-                  
-                  <div className="w-full pr-4">
-                    <div className="bg-[#FF8474] p-4 shadow-lg mb-12">
-                        <div className="bg-white rounded-lg shadow-lg mb-6">
-                            <div className="bg-black text-white p-4 rounded-t-lg">Help & Support</div>
-                            <div className="space-y-2  min-h-[200px] max-h-[200px] overflow-y-auto p-4">
-                            <p>For assistance, please call our customer support at +91 123 456 789 or email us.</p>
-                            </div>
-                        </div>
-                     </div>
-                  </div>
-
-                  
-              </div>
-           
-
-               
-            </div>
-           {/* Tracking Details Popup */}
-           {showTrackingPopup && trackingDetails && (
-                <div className="fixed top-0 left-0 w-full h-full bg-gray-500 bg-opacity-50 flex items-center justify-center">
-                <div className="bg-white rounded-lg shadow-lg p-6 w-3/4 sm:w-1/3">
-                    <div className="flex flex-col">
-                        {/* Tracking Info Section */}
-                        <div className="flex justify-between items-center">
-                            <div className="text-3xl font-semibold text-green-600">Shipment</div>
-                            <div className="text-xl text-gray-600 font-bold">FREE</div>
-                        </div>
-        
-                        <div className="text-lg text-gray-600 mt-2">(1 item)</div>
-        
-                        {/* Item Info Section */}
-                        <div className="mt-4">
-                            <div className="text-xl font-semibold text-gray-800">Item:</div>
-                            <div className="text-lg text-gray-600 mt-2">Tracking ID: {trackingDetails?.data?.lrnum}</div>
-                        </div>
-        
-                        {/* Date & Time Section */}
-                        <div className="mt-6">
-                            <div className="text-xl font-semibold text-gray-800">On:</div>
-                            <div className="text-lg text-gray-600 mt-2">
-                                {trackingDetails?.data?.wbns[0]?.pickup_date}
-                            </div>
-                            <div className="text-lg text-gray-600 mt-2">
-                                Estimated between   {trackingDetails?.data?.wbns[0]?.promised_delivery_date} - {trackingDetails?.data?.wbns[0]?.estimated_date}
-                            </div>
-                        </div>
-        
-                        {/* Sender Info Section */}
-                        <div className="mt-6">
-                            <div className="text-xl font-semibold text-gray-800">From:</div>
-                            <div className="text-lg text-gray-600 mt-2">
-                                {trackingDetails?.data?.sender_name}
-                            </div>
-                            <div className="text-lg text-gray-600 mt-2">
-                                {trackingDetails?.data?.wbns[0]?.location}
-                            </div>
-                        </div>
-                        {/* Tracking Status */}
-                        <div className="mt-4 text-lg font-semibold text-gray-600">
-                            <div>Status:</div>
-                            <div className="text-xl font-bold text-gray-800"> {trackingDetails?.data?.wbns[0]?.status} </div>
-                            <div className="text-sm text-gray-500 mt-2"> {trackingDetails?.data?.wbns[0]?.wbn}</div>
-                        </div>
-                        {/* Action Buttons */}
-                        <div className="mt-6 flex justify-between">
-                           
-                            <button className="text-green-600 hover:text-green-800 font-semibold">Add to Calendar</button>
-                            <button className="text-red-600 hover:text-red-800 font-semibold"  onClick={closeTrackingPopup}>Cancel</button>
-                        </div>
-        
-                        
-        
-                        {/* Close Button */}
-                        <div className="mt-6">
-                            <button
-                                onClick={closeTrackingPopup}
-                                className="w-full bg-red-500 text-white px-4 py-2 rounded-lg"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            )}
-
-            {/* Footer */}
-            <footer className="bg-black text-white py-4 text-center mt-6">
-                <div className="flex justify-center space-x-4 mt-2">
-                    <a href="#" className="hover:text-gray-400">Facebook</a>
-                    <a href="#" className="hover:text-gray-400">Instagram</a>
-                    <a href="#" className="hover:text-gray-400">Twitter</a>
-                </div>
-            </footer>
+  /* ---------------- VIEW 1: DASHBOARD ---------------- */
+  const renderDashboard = () => (
+    <div className="p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="flex justify-between items-end mb-8">
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Live Tracking</h2>
+          <p className="text-slate-400 text-sm">Overview of all active parcels in the network.</p>
         </div>
-    );
+        <div className="flex gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+          {["All", "Delivered", "In-Transit", "Picked"].map(f => (
+            <button key={f} onClick={() => setActiveFilter(f)} 
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${activeFilter === f ? "bg-white text-[#FF8474] shadow-sm" : "text-slate-400"}`}>
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+        {shipments.filter(s => activeFilter === "All" || s.status === activeFilter).map((s) => (
+          <div key={s.id} className="flex items-center justify-between p-6 bg-white border border-slate-100 rounded-[2rem] hover:shadow-lg transition-all group">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-xl group-hover:bg-orange-50 group-hover:text-orange-500 transition-colors">📦</div>
+              <div>
+                <p className="font-mono font-bold text-slate-800">{s.tracking}</p>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{s.courier} • {s.date}</p>
+              </div>
+            </div>
+            <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${s.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+              {s.status}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  /* ---------------- VIEW 2: ORDERS ---------------- */
+  const renderOrders = () => (
+    <div className="p-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <h2 className="text-2xl font-black text-slate-800 mb-6">Fulfillment Queue</h2>
+      <div className="space-y-4">
+        {orders.map((o) => (
+          <div key={o.id} className="flex flex-col md:flex-row justify-between items-center p-6 border border-slate-100 rounded-[2.5rem] bg-white group hover:border-[#FF8474]/30 transition-all">
+            <div className="flex items-center gap-6">
+                <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-xs italic">NEW</div>
+                <div>
+                    <p className="font-black text-slate-800">{o.id} • {o.customer}</p>
+                    <p className="text-xs text-slate-400 font-medium">{o.address}</p>
+                </div>
+            </div>
+            <div className="flex items-center gap-6 mt-4 md:mt-0">
+                <p className="font-mono font-black text-slate-700">${o.total.toFixed(2)}</p>
+                <button onClick={() => { setSelectedOrder(o); setLabelStep(1); setShowLabelModal(true); }} 
+                  className="bg-[#FF8474] text-white px-8 py-3 rounded-2xl font-black text-xs shadow-xl shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all">
+                  CREATE LABEL
+                </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  /* ---------------- VIEW 3: ADMIN ---------------- */
+  const renderAdmin = () => (
+    <div className="p-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="flex items-center justify-between mb-10">
+        <h2 className="text-3xl font-black text-slate-900 tracking-tighter italic">CONSOLE_ROOT</h2>
+        <span className="flex items-center gap-2 text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full uppercase">
+          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span> API Online
+        </span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-8 bg-slate-900 text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10 text-6xl font-black italic">$$$</div>
+            <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-2">Total Managed Revenue</p>
+            <h4 className="text-5xl font-black tracking-tighter">$142,800</h4>
+            <div className="mt-8 flex gap-2">
+               <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden"><div className="h-full bg-orange-400 w-3/4"></div></div>
+               <div className="h-1 flex-1 bg-white/20 rounded-full"></div>
+            </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4">
+            <div className="p-6 bg-white border border-slate-100 rounded-[2rem] flex justify-between items-center shadow-sm">
+                <div><p className="text-slate-400 text-[10px] font-black uppercase">Active Nodes</p><h5 className="text-2xl font-black">12 Server Instances</h5></div>
+                <div className="text-emerald-500 font-black">ACTIVE</div>
+            </div>
+            <div className="p-6 bg-white border border-slate-100 rounded-[2rem] flex justify-between items-center shadow-sm">
+                <div><p className="text-slate-400 text-[10px] font-black uppercase">Webhooks</p><h5 className="text-2xl font-black">99.8% Success</h5></div>
+                <div className="text-blue-500 font-black">STABLE</div>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ---------------- VIEW 4: REPORTS ---------------- */
+  const renderReports = () => (
+    <div className="p-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="bg-slate-50 p-10 rounded-[3rem] text-center border-2 border-dashed border-slate-200">
+          <div className="w-20 h-20 bg-white rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-6 text-3xl">📊</div>
+          <h2 className="text-2xl font-black text-slate-800 mb-2">Monthly P&L Report</h2>
+          <p className="text-slate-400 mb-8 max-w-xs mx-auto">Full financial breakdown for March 2024 is currently being calculated.</p>
+          <button className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-xl hover:bg-[#FF8474] transition-all">REQUEST DATA SYNC</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-orange-100">
+      {/* HEADER & NAV */}
+      <header className="relative bg-slate-900 text-white pb-40 overflow-hidden">
+        <div className="absolute inset-0 opacity-40 bg-cover bg-center scale-110" style={{ backgroundImage: `url(${headerImg})` }} />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/90 to-slate-900" />
+
+        <nav className="relative z-20 flex justify-between items-center px-10 py-8 max-w-7xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#FF8474] rounded-2xl flex items-center justify-center font-black text-2xl shadow-xl shadow-orange-500/30 rotate-3 transition-transform hover:rotate-0">S</div>
+            <h1 className="text-2xl font-black tracking-tighter">ShipMyParcel <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-md font-bold text-orange-400">v2.1</span></h1>
+          </div>
+
+          <div className="hidden md:flex bg-white/10 backdrop-blur-2xl border border-white/10 p-1.5 rounded-[2rem] gap-1 shadow-2xl">
+            {["Dashboard", "Orders", "Admin", "Reports"].map((item) => (
+              <button key={item} onClick={() => setActiveTab(item)}
+                className={`px-8 py-3 rounded-[1.5rem] transition-all text-[11px] font-black uppercase tracking-widest ${activeTab === item ? "bg-white text-slate-900 shadow-xl scale-105" : "text-white/50 hover:text-white"}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-4 relative">
+             <button className="flex items-center gap-3 bg-white text-slate-900 pl-2 pr-6 py-2 rounded-2xl font-black text-sm shadow-2xl hover:scale-105 transition-transform active:scale-95">
+              <div className="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 font-black text-xs italic">SY</div>
+              Sunny
+            </button>
+          </div>
+        </nav>
+
+        <div className="relative z-10 px-10 pt-16 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end">
+          <div>
+              <p className="text-orange-400 font-black uppercase text-[10px] tracking-[0.3em] mb-4">Enterprise Control Module</p>
+              <h2 className="text-7xl font-black mb-4 tracking-tighter leading-none">{activeTab}<span className="text-[#FF8474]">.</span></h2>
+          </div>
+          <div className="hidden lg:flex gap-6 mb-2">
+              <div className="text-right">
+                  <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-1">Total Assets</p>
+                  <h4 className="text-3xl font-black tracking-tighter italic">2.4k</h4>
+              </div>
+              <div className="w-px h-12 bg-white/10"></div>
+              <div className="text-right">
+                  <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-1">Global Reach</p>
+                  <h4 className="text-3xl font-black tracking-tighter italic">148+</h4>
+              </div>
+          </div>
+        </div>
+      </header>
+
+      {/* DYNAMIC CONTENT AREA */}
+      <main className="max-w-7xl mx-auto px-10 -mt-20 relative z-30 pb-20">
+        <div className="bg-white rounded-[4rem] shadow-2xl shadow-slate-300/50 border border-slate-100 overflow-hidden min-h-[600px] animate-in slide-in-from-bottom-8 duration-700">
+          {activeTab === "Dashboard" && renderDashboard()}
+          {activeTab === "Orders" && renderOrders()}
+          {activeTab === "Admin" && renderAdmin()}
+          {activeTab === "Reports" && renderReports()}
+        </div>
+      </main>
+
+      {/* FULFILLMENT MODAL (Stepped Workflow) */}
+      {showLabelModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={() => setShowLabelModal(false)} />
+          <div className="relative bg-white rounded-[3.5rem] w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            {labelStep === 1 ? (
+              <div className="p-12">
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-3xl font-black tracking-tighter">Final Config</h2>
+                    <span className="text-[10px] font-black bg-slate-100 px-3 py-1 rounded-full uppercase">Step 01</span>
+                </div>
+                <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 mb-8">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Shipment to:</p>
+                    <p className="text-xl font-black text-slate-800">{selectedOrder?.customer}</p>
+                    <p className="text-sm text-slate-500 mt-1">{selectedOrder?.address}</p>
+                </div>
+                <button onClick={() => setLabelStep(2)} className="w-full bg-[#FF8474] text-white py-6 rounded-[2.5rem] font-black shadow-2xl shadow-orange-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    GENERATE AIRWAY BILL
+                </button>
+              </div>
+            ) : (
+              <div className="p-12 text-center">
+                <h2 className="text-3xl font-black mb-8 tracking-tighter">Label Output</h2>
+                {/* Visual Shipping Label Simulation */}
+                <div className="mx-auto w-[300px] border-4 border-slate-900 p-8 bg-white text-left shadow-2xl mb-8 transform hover:scale-105 transition-transform cursor-pointer">
+                    <div className="border-b-4 border-slate-900 pb-4 mb-6 font-black italic text-2xl tracking-tighter">SMP_GLOBAL</div>
+                    <div className="text-[10px] font-black uppercase mb-6 leading-tight">CONSINEE:<br/>{selectedOrder?.customer}<br/>{selectedOrder?.address}</div>
+                    <div className="h-24 bg-slate-900 mb-4 flex items-center justify-center gap-1.5 p-3">
+                        {[2,4,1,3,1,5,2,1,3,2,4,1].map((w,i)=><div key={i} className="bg-white h-full" style={{width:`${w*2.5}px`}}></div>)}
+                    </div>
+                    <div className="text-center font-mono font-black text-[12px] tracking-[0.2em] uppercase">ID: {selectedOrder?.id}-BLU-X</div>
+                </div>
+                <div className="flex gap-4">
+                    <button className="flex-1 bg-slate-100 text-slate-800 py-5 rounded-[2rem] font-black text-sm hover:bg-slate-200 transition-all">DOWNLOAD PDF</button>
+                    <button onClick={() => setShowLabelModal(false)} className="flex-1 bg-slate-900 text-white py-5 rounded-[2rem] font-black text-sm">CLOSE</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default DashboardPage;
