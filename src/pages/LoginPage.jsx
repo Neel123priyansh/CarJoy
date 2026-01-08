@@ -1,15 +1,43 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function LoginPage() {
-    // Keep your existing state logic
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(false); 
+    
+    const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        // Your existing login logic here
-        console.log("Logging in with:", email, password);
+    try {
+        const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:5000';
+        
+        const response = await fetch(`${API_URL}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            navigate('/dashboard');
+        } else {
+            alert(data.message || 'Login failed');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        alert('Network error. Please try again.');
+    } finally {
+        setIsLoading(false);
+    }
     };
+
 
     return (
         <div className="w-full">

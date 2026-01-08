@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const RegisterPage = ({ onBack, onSuccess }) => {
+    const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [isloading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -19,15 +21,58 @@ const RegisterPage = ({ onBack, onSuccess }) => {
     const nextStep = () => setStep(step + 1);
     const prevStep = () => setStep(step - 1);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setIsLoading(true);
+    const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
 
-        // Simulate API call delay for a professional feel
-        setTimeout(() => {
-            setIsLoading(false);
-            onSuccess(formData); // This triggers the transition to DashboardPage.jsx
-        }, 1500);
+  // Optional: Client-side validation before API call
+  if (!formData.email.includes('@')) {
+    alert('Please enter a valid email');
+    setIsLoading(false);
+    return;
+  }
+
+  try {
+
+    const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:5000';
+    
+    const response = await fetch(`${API_URL}/api/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: formData.fullName,
+        email: formData.email,
+        businessName: formData.businessName,
+        storeType: formData.storeType,
+        phone: formData.phone,
+        password: formData.password
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Registration failed');
+    }
+
+    const data = await response.json();
+    
+    
+    if (typeof onSuccess === 'function') {
+        onSuccess({ userData: formData, apiResponse: data });
+    } else {
+        console.log('Registration successful (no onSuccess prop):', data);
+        alert('Registration successful!');
+        navigate('/');
+    }
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+
+    alert(error.message || 'Unable to register. Please try again.');
+
+    } finally {
+        setIsLoading(false);
+    }
     };
 
     return (
